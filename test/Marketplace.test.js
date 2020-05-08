@@ -60,7 +60,45 @@ contract("Marketplace",([deployer, seller, buyer])=>{
         assert.equal(products.owner,seller,"has a owner");
         assert.equal(products.purchased,false,"has a purchased");
 
-    })
+        })
+
+        it("sells product", async()=>{
+
+            let oldSellerPrice = await web3.eth.getBalance(seller);
+            oldSellerPrice = new web3.utils.BN(oldSellerPrice);
+
+            const result = await marketplace.purchaseProduct(productCount,{from: buyer, value: web3.utils.toWei('1','ether')})
+            const event = result.logs[0].args;
+
+            //SUCCESS
+           assert.equal(event.id.toNumber(),productCount.toNumber(),"has an id");
+           assert.equal(event.name,"iPhone X","has a name");
+           assert.equal(event.price,1000000000000000000,"has a price");
+           assert.equal(event.owner,buyer,"has a owner");
+           assert.equal(event.purchased,true,"has a purchased");
+
+            let newSellerBalance = await web3.eth.getBalance(seller);
+            newSellerBalance = new web3.utils.BN(newSellerBalance);
+
+            let price = web3.utils.toWei('1','ether');
+            price = new web3.utils.BN(price);
+
+            const expectedBalance = oldSellerPrice.add(price);
+
+            assert.equal(expectedBalance.toString(),newSellerBalance.toString());
+
+            //FAILURE
+            //invalid ID
+            await marketplace.purchaseProduct(99,{from: buyer, value: web3.utils.toWei('1','ether')}).should.be.rejected;
+            //Not enough price
+            await marketplace.purchaseProduct(productCount,{from: buyer, value: web3.utils.toWei('0.5','ether')}).should.be.rejected;
+            //no one can buy the product twice 
+            await marketplace.purchaseProduct(productCount,{from: deployer, value: web3.utils.toWei('1','ether')}).should.be.rejected;
+            //seller can't buy the product again
+            await marketplace.purchaseProduct(productCount,{from: buyer, value: web3.utils.toWei('1','ether')}).should.be.rejected;
+
+
+        })
     })
 
 
